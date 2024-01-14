@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BMPCC Remote</title>
+</head>
+<body>
+  <div id="app">
+    <button @click="onConnectClick" v-if="!camera">Connect to Camera</button>
+    <div v-if="camera">
+      <h1>Connected to {{ camera.cameraModel }} ({{ camera.status.join(', ') }})</h1>
+      <h2>Timecode: {{ camera.timecode }}</h2>
+      <h2>Focus: {{ camera.params.lens.focus }}</h2>
+      <h2>Aperature F Stop: {{ Math.round(10 * (Math.sqrt(Math.pow(2,camera.params.lens.aperture_f_stop)) + Number.EPSILON)) / 10 }}</h2>
+      <h2>ISO: {{ camera.params.video.iso }}</h2>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="bmpcc.js"></script>
+  <script>
+    Vue.createApp({
+      data() {
+        return {
+          camera: null
+        }
+      },
+      methods: {
+        async onConnectClick() {
+          this.camera = new BMPCC();
+          await this.camera.connect();
+          console.log(this.camera.cameraManufacturer);
+          console.log(this.camera.cameraModel);
+        },
+      },
+    }).mount('#app');
+  </script>
+</body>
+</html>
