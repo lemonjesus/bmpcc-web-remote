@@ -159,7 +159,62 @@ class BMPCC {
     this.status = state;
   }
 
+  async setParam(groupId, paramId, value) {
+    let group = this.protocol.groups.find(group => group.id == groupId);
+    if(!group) return;
+
+    let parameter = group.parameters.find(parameter => parameter.id == paramId);
+    if(!parameter) return;
+
+    // how should we encode it?
+    let bytes, type;
+    switch(parameter.type) {
+      case 'int8':
+        bytes = [value];
+        type = 1;
+        break;
+      case 'int16':
+        bytes = [value & 0xFF, (value >> 8) & 0xFF];
+        type = 2;
+        break;
+      case 'int32':
+        bytes = [value & 0xFF, (value >> 8) & 0xFF, (value >> 16) & 0xFF, (value >> 24) & 0xFF];
+        type = 3;
+        break;
+      case 'int64':
+        bytes = [value & 0xFF, (value >> 8) & 0xFF, (value >> 16) & 0xFF, (value >> 24) & 0xFF, (value >> 32) & 0xFF, (value >> 40) & 0xFF, (value >> 48) & 0xFF, (value >> 56) & 0xFF];
+        type = 4;
+        break;
+      case 'fixed16':
+        value = value * 2048;
+        bytes = [value & 0xFF, (value >> 8) & 0xFF];
+        type = 128;
+        break;
+      case 'string':
+        let encoder = new TextEncoder('utf-8');
+        bytes = encoder.encode(value);
+        type = 5;
+        break;
+      default:
+        console.log('Unknown type: ' + parameter.type);
+        return;
+    }
+
+    // pad bytes to 4-byte boundary
+    while(bytes.length % 4 != 0) {
+      bytes.push(0x00);
+    }
+
+    let operation = 0x00; // when is this 1?
+
+    // build the packet
+    let packet = [0xFF, bytes.length + 4, 0x00, 0x00, groupId, paramId, type, operation, ...bytes];
+    await this.sendPacket(packet);
+  }
+
   async sendPacket(packet) {
+    console.log('Outgoing> ' + packet)
+    packet = new Uint8Array(packet);
     let service = await this.server.getPrimaryService(services.cameraService.uuid);
     let outgoingCharacteristic = await service.getCharacteristic(services.cameraService.characteristics.outgoing);
     await outgoingCharacteristic.writeValue(packet);
