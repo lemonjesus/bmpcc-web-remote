@@ -33,7 +33,7 @@
           <input type="range" class="form-range" min="0" max="1" step="0.05" data-group=0 data-id=3 id="aperture" @input="updateParameter" :disabled="camera.params.lens.aperture_normalised == undefined" :value="camera.params.lens.aperture_normalised">
 
           <label for="iso" class="form-label">ISO: {{ camera.params.video.iso }}</label>
-          <input type="range" class="form-range" min="100" max="25600" step=100 data-group=1 data-id=14 id="iso" @input="updateParameter" :disabled="camera.params.video.iso == undefined" :value="camera.params.video.iso">
+          <input type="range" class="form-range" min="0" max="25" step="1" data-group=1 data-id=14 data-options="[100,125,160,200,250,320,400,500,640,800,1000,1250,1600,2000,2500,3200,4000,5000,6400,8000,10000,12800,16000,20000,25600]" id="iso" @input="updateParameterBySelection" :disabled="camera.params.video.iso == undefined" :value="[100,125,160,200,250,320,400,500,640,800,1000,1250,1600,2000,2500,3200,4000,5000,6400,8000,10000,12800,16000,20000,25600].indexOf(camera.params.video.iso)">
         </div>
       </div>
     </div>
@@ -55,7 +55,14 @@
           console.log(this.camera.cameraModel);
         },
         async updateParameter(event) {
-          await this.camera.setParam(parseInt(event.target.dataset.group), parseInt(event.target.dataset.id), event.target.value);
+          this.updateParameterRaw(parseInt(event.target.dataset.group), parseInt(event.target.dataset.id), event.target.value);
+        },
+        async updateParameterBySelection(event) {
+          let options = JSON.parse(event.target.dataset.options);
+          this.updateParameterRaw(parseInt(event.target.dataset.group), parseInt(event.target.dataset.id), options[event.target.value]);
+        },
+        async updateParameterRaw(group, id, value) {
+          await this.camera.setParam(group, id, value);
         }
       },
     }).mount('#app');
