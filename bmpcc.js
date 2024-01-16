@@ -37,6 +37,12 @@ class BMPCC {
         this.protocol = data;
         this.protocol.groups.forEach(group => {
           this.params[group.normalized_name] = {};
+          group.parameters.forEach(parameter => {
+            this.params[group.normalized_name][parameter.normalized_parameter] = null;
+            if(parameter.index.length != 0) {
+              this.params[group.normalized_name][parameter.normalized_parameter] = new Array(parameter.index.length).fill(null);
+            }
+          });
         });
       });
   }
@@ -159,7 +165,7 @@ class BMPCC {
     this.status = state;
   }
 
-  async setParam(groupId, paramId, value) {
+  async setParam(groupId, paramId, index, value) {
     let group = this.protocol.groups.find(group => group.id == groupId);
     if(!group) return;
 
@@ -208,7 +214,7 @@ class BMPCC {
     let operation = 0x00; // when is this 1?
 
     // build the packet
-    let packet = [0xFF, bytes.length + 4, 0x00, 0x00, groupId, paramId, type, operation, ...bytes];
+    let packet = [0xFF, bytes.length + 4, 0x00, 0x00, groupId, paramId, type, index, ...bytes];
     await this.sendPacket(packet);
   }
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,18 +22,77 @@
         </div>
       </nav>
       <div class="container" id="param-field">
-        <div id="quick-options">
-          <div class="btn-group d-block" role="group">
-            <button type="button" class="btn btn-outline-primary" @click="camera.sendPacket([255, 4, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0])">Focus</button>
-            <button type="button" class="btn btn-outline-primary">Middle</button>
-            <button type="button" class="btn btn-outline-primary">Right</button>
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="lens-tab" data-bs-toggle="tab" data-bs-target="#lens" type="button" role="tab" aria-controls="lens" aria-selected="true">Lens</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="video-tab" data-bs-toggle="tab" data-bs-target="#video" type="button" role="tab" aria-controls="video" aria-selected="false">Video</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="audio-tab" data-bs-toggle="tab" data-bs-target="#audio" type="button" role="tab" aria-controls="audio" aria-selected="false">Audio</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="media-tab" data-bs-toggle="tab" data-bs-target="#media" type="button" role="tab" aria-controls="media" aria-selected="false">Media</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="color-tab" data-bs-toggle="tab" data-bs-target="#color" type="button" role="tab" aria-controls="color" aria-selected="false">Color</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="metadata-tab" data-bs-toggle="tab" data-bs-target="#metadata" type="button" role="tab" aria-controls="metadata" aria-selected="false">Metadata</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="other-tab" data-bs-toggle="tab" data-bs-target="#other" type="button" role="tab" aria-controls="other" aria-selected="false">Other</button>
+        </ul>
+        <div class="tab-content pt-1" id="myTabContent">
+          <div class="tab-pane fade show active" id="lens" role="tabpanel" aria-labelledby="lens-tab">
+            <div class="btn-group d-block" role="group">
+              <button type="button" class="btn btn-outline-primary" @click="camera.sendPacket([255, 4, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0])">Auto Focus</button>
+              <button type="button" class="btn btn-outline-primary" @click="camera.sendPacket([255, 4, 0, 0, 0, 1, 5, 0, 0, 0, 0, 0])">Auto Aperture</button>
+            </div>
+            <label for="aperture" class="form-label">F-Stop: {{ Math.round(10 * (Math.sqrt(Math.pow(2,camera.params.lens.aperture_f_stop)) + Number.EPSILON)) / 10 }}</label>
+            <input type="range" class="form-range" min="0" max="1" step="0.05" data-group=0 data-id=3 id="aperture" @input="updateParameter" :disabled="camera.params.lens.aperture_normalised == undefined" :value="camera.params.lens.aperture_normalised">  
           </div>
 
-          <label for="aperture" class="form-label">F-Stop: {{ Math.round(10 * (Math.sqrt(Math.pow(2,camera.params.lens.aperture_f_stop)) + Number.EPSILON)) / 10 }}</label>
-          <input type="range" class="form-range" min="0" max="1" step="0.05" data-group=0 data-id=3 id="aperture" @input="updateParameter" :disabled="camera.params.lens.aperture_normalised == undefined" :value="camera.params.lens.aperture_normalised">
+          <div class="tab-pane fade" id="video" role="tabpanel" aria-labelledby="video-tab">
+            <label for="iso" class="form-label">ISO: {{ camera.params.video.iso }}</label>
+            <input type="range" class="form-range" min="0" max="25" step="1" data-group=1 data-id=14 data-options="[100,125,160,200,250,320,400,500,640,800,1000,1250,1600,2000,2500,3200,4000,5000,6400,8000,10000,12800,16000,20000,25600]" id="iso" @input="updateParameterBySelection" :disabled="camera.params.video.iso == undefined" :value="[100,125,160,200,250,320,400,500,640,800,1000,1250,1600,2000,2500,3200,4000,5000,6400,8000,10000,12800,16000,20000,25600].indexOf(camera.params.video.iso)">
+          </div>
 
-          <label for="iso" class="form-label">ISO: {{ camera.params.video.iso }}</label>
-          <input type="range" class="form-range" min="0" max="25" step="1" data-group=1 data-id=14 data-options="[100,125,160,200,250,320,400,500,640,800,1000,1250,1600,2000,2500,3200,4000,5000,6400,8000,10000,12800,16000,20000,25600]" id="iso" @input="updateParameterBySelection" :disabled="camera.params.video.iso == undefined" :value="[100,125,160,200,250,320,400,500,640,800,1000,1250,1600,2000,2500,3200,4000,5000,6400,8000,10000,12800,16000,20000,25600].indexOf(camera.params.video.iso)">
+          <div class="tab-pane fade" id="audio" role="tabpanel" aria-labelledby="audio-tab">
+            <label for="mic-level" class="form-label">Mic Level: {{ camera.params.audio.mic_level }}</label>
+            <input type="range" class="form-range" min="0" max="1" step="0.01" data-group=2 data-id=0 id="mic-level" @input="updateParameter" :disabled="camera.params.audio.mic_level == undefined" :value="camera.params.audio.mic_level">
+            <label for="headphone-level" class="form-label">Headphone Level: {{ camera.params.audio.headphone_level }}</label>
+            <input type="range" class="form-range" min="0.1" max="1" step="0.01" data-group=2 data-id=1 id="headphone-level" @input="updateParameter" :disabled="camera.params.audio.headphone_level == undefined" :value="camera.params.audio.headphone_level">
+            <label for="headphone-program-mix" class="form-label">Headphone Program Mix: {{ camera.params.audio.headphone_program_mix }}</label>
+            <input type="range" class="form-range" min="0.1" max="1" step="0.01" data-group=2 data-id=2 id="headphone-program-mix" @input="updateParameter" :disabled="camera.params.audio.headphone_program_mix == undefined" :value="camera.params.audio.headphone_program_mix">
+            <label for="speaker-level" class="form-label">Speaker Level: {{ camera.params.audio.speaker_level }}</label>
+            <input type="range" class="form-range" min="0.1" max="1" step="0.01" data-group=2 data-id=3 id="speaker-level" @input="updateParameter" :disabled="camera.params.audio.speaker_level == undefined" :value="camera.params.audio.speaker_level">
+            <label for="input-type" class="form-label">Input Type:</label>
+            <select class="form-select" data-group=2 data-id=4 id="input-type" @input="updateParameter" :disabled="camera.params.audio.input_type == undefined" :value="camera.params.audio.input_type">
+              <option value="0">Internal Microphone</option>
+              <option value="1">Line Level Input</option>
+              <option value="2">Low Mic Level Input</option>
+              <option value="3">High Mic Level Input</option>
+            </select>
+            <label for="input-level" class="form-label">Input Levels:</label>
+            <!-- <input type="range" class="form-range" min="0" max="1" step="0.01" data-group=2 data-id=5 data-index=0 id="input-level0" @input="updateParameter" :disabled="camera.params.audio.input_level[0] == undefined" :value="camera.params.audio.input_level[0] || 0">
+            <input type="range" class="form-range" min="0" max="1" step="0.01" data-group=2 data-id=5 data-index=1 id="input-level0" @input="updateParameter" :disabled="camera.params.audio.input_level[1] == undefined" :value="camera.params.audio.input_level[1] || 0"> -->
+            <label for="fantom-power" class="form-label">Fantom Power:</label>
+            <input type="checkbox" class="form-check-input" data-group=2 data-id=6 id="fantom-power" @input="updateParameter" :disabled="camera.params.audio.fantom_power == undefined" :checked="camera.params.audio.fantom_power">
+          </div>
+
+          <div class="tab-pane fade" id="media" role="tabpanel" aria-labelledby="media-tab">
+          </div>
+
+          <div class="tab-pane fade" id="color" role="tabpanel" aria-labelledby="color-tab">
+          </div>
+
+          <div class="tab-pane fade" id="metadata" role="tabpanel" aria-labelledby="metadata-tab">
+          </div>
+
+          <div class="tab-pane fade" id="other" role="tabpanel" aria-labelledby="other-tab">
+          </div>
         </div>
       </div>
     </div>
@@ -53,16 +112,17 @@
           await this.camera.connect();
           console.log(this.camera.cameraManufacturer);
           console.log(this.camera.cameraModel);
+          window.camera = this.camera;
         },
         async updateParameter(event) {
-          this.updateParameterRaw(parseInt(event.target.dataset.group), parseInt(event.target.dataset.id), event.target.value);
+          this.updateParameterRaw(parseInt(event.target.dataset.group), parseInt(event.target.dataset.id), parseInt(event.target.dataset.index), event.target.value);
         },
         async updateParameterBySelection(event) {
           let options = JSON.parse(event.target.dataset.options);
-          this.updateParameterRaw(parseInt(event.target.dataset.group), parseInt(event.target.dataset.id), options[event.target.value]);
+          this.updateParameterRaw(parseInt(event.target.dataset.group), parseInt(event.target.dataset.id), parseInt(event.target.dataset.index), options[event.target.value]);
         },
-        async updateParameterRaw(group, id, value) {
-          await this.camera.setParam(group, id, value);
+        async updateParameterRaw(group, id, index, value) {
+          await this.camera.setParam(group, id, index || 0, value);
         }
       },
     }).mount('#app');
