@@ -10,12 +10,47 @@
     #param-field{
         margin-top: 60px !important;
     }
+    .dropdown-side {
+      display: inline-block;
+      width: auto;
+    }
+
+    .select-side{
+      height: 44px;
+      border: none;
+      overflow: hidden;
+    }
+    .select-side::-moz-focus-inner {
+      border: 0;
+    }
+    .select-side:focus {
+      outline: none;
+    }
+    .select-side option{
+      width: 60px;
+      font-size: 1.2em;
+      padding: 10px 0;
+      text-align: center;
+      margin-right: 20px;
+      display: inline-block;
+      cursor: pointer;
+      border:rgb(204, 204, 0) solid 1px;
+      border-radius: 5px;
+      color: rgb(204, 204, 0);
+    }
 </style>
 </head>
 <body>
   <div id="app">
     <button @click="onConnectClick" v-if="!camera">Connect to Camera</button>
-    <div v-if="camera">
+    <div v-if="camera && camera.raw_status != 3">
+      <nav class="navbar fixed-top navbar-light bg-light">
+        <div class="container-fluid">
+          <a class="navbar-brand" href="#">Syncing state...</a>
+        </div>
+      </nav>
+    </div>
+    <div v-if="camera && camera.raw_status == 3">
       <nav class="navbar fixed-top navbar-light bg-light">
         <div class="container-fluid">
           <a class="navbar-brand" href="#">{{ camera.cameraManufacturer }} {{ camera.cameraModel }}</a>
@@ -50,11 +85,89 @@
               <button type="button" class="btn btn-outline-primary" @click="camera.sendPacket([255, 4, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0])">Auto Focus</button>
               <button type="button" class="btn btn-outline-primary" @click="camera.sendPacket([255, 4, 0, 0, 0, 1, 5, 0, 0, 0, 0, 0])">Auto Aperture</button>
             </div>
-            <label for="aperture" class="form-label">F-Stop: {{ Math.round(10 * (Math.sqrt(Math.pow(2,camera.params.lens.aperture_f_stop)) + Number.EPSILON)) / 10 }}</label>
-            <input type="range" class="form-range" min="0" max="1" step="0.05" data-group=0 data-id=3 id="aperture" @input="updateParameter" :disabled="camera.params.lens.aperture_normalised == undefined" :value="camera.params.lens.aperture_normalised">  
+
+            <label v-if="camera.params.lens.focus" for="aperture" class="form-label">Focus: {{ camera.params.lens.focus }}</label>
+            <input v-if="camera.params.lens.focus" type="range" class="form-range" min="0" max="1" step="0.05" data-group=0 data-id=0 id="aperture" @input="updateParameter" :disabled="camera.params.lens.focus == undefined" :value="camera.params.lens.focus">
+            
+            <label v-if="camera.params.lens.aperture_normalised != undefined" for="aperture" class="form-label">F-Stop: {{ Math.round(10 * (Math.sqrt(Math.pow(2,camera.params.lens.aperture_f_stop)) + Number.EPSILON)) / 10 }}</label>
+            <input v-if="camera.params.lens.aperture_normalised != undefined" type="range" class="form-range" min="0" max="1" step="0.05" data-group=0 data-id=3 id="aperture" @input="updateParameter" :disabled="camera.params.lens.aperture_normalised == undefined" :value="camera.params.lens.aperture_normalised">
+
+            <label v-if="camera.params.lens.optical_image_stabilisation != undefined" for="ois" class="form-label">OIS:</label>
+            <input v-if="camera.params.lens.optical_image_stabilisation != undefined" type="checkbox" class="form-check-input" data-group=0 data-id=6 id="ois" @input="updateParameter" :checked="camera.params.lens.optical_image_stabilisation">
           </div>
 
           <div class="tab-pane fade" id="video" role="tabpanel" aria-labelledby="video-tab">
+
+            <label for="frame-rate" class="form-label">Frame Rate:</label>
+            <select id="frame-rate" class="form-select" data-group="1" data-id="9" data-index="0" @change="updateCompositeParameter" :disabled="camera.params.video.recording_format == undefined" :value="camera.params.video.recording_format[0]">
+              <option value="24">24</option>
+              <option value="25">25</option>
+              <option value="30">30</option>
+              <option value="50">50</option>
+              <option value="60">60</option>
+            </select>
+
+            <label for="off-speed-frame-rate" class="form-label">Off Speed Frame Rate:</label>
+            <select id="off-speed-frame-rate" class="form-select" data-group="1" data-id="9" data-index="1" @change="updateCompositeParameter" :disabled="camera.params.video.recording_format == undefined" :value="camera.params.video.recording_format[1]">
+              <option value="24">24</option>
+              <option value="25">25</option>
+              <option value="30">30</option>
+              <option value="50">50</option>
+              <option value="60">60</option>
+              <option value="120">120</option>
+            </select>
+
+            <div class="btn-group my-3" role="group" aria-label="Basic radio toggle button group">
+              <input type="radio" class="btn-check" name="resolution-selector" id="resolution-selector1" autocomplete="off" :checked="camera.params.video.recording_format.slice(2,4).equals([6144, 3456])" @click="updateResolution(6144, 3456)">
+              <label class="btn btn-outline-primary" for="resolution-selector1">6K</label>
+            
+              <input type="radio" class="btn-check" name="resolution-selector" id="resolution-selector2" autocomplete="off" :checked="camera.params.video.recording_format.slice(2,4).equals([6144, 2560])" @click="updateResolution(6144, 2560)">
+              <label class="btn btn-outline-primary" for="resolution-selector2">6K 2.4:1</label>
+            
+              <input type="radio" class="btn-check" name="resolution-selector" id="resolution-selector3" autocomplete="off" :checked="camera.params.video.recording_format.slice(2,4).equals([5744, 3024])" @click="updateResolution(5744, 3024)">
+              <label class="btn btn-outline-primary" for="resolution-selector3">5.7K 17:9</label>
+
+              <input type="radio" class="btn-check" name="resolution-selector" id="resolution-selector4" autocomplete="off" :checked="camera.params.video.recording_format.slice(2,4).equals([4096, 2160])" @click="updateResolution(4096, 2160)">
+              <label class="btn btn-outline-primary" for="resolution-selector4">4K DCI</label>
+
+              <input type="radio" class="btn-check" name="resolution-selector" id="resolution-selector5" autocomplete="off" :checked="camera.params.video.recording_format.slice(2,4).equals([3728, 3104])" @click="updateResolution(3728, 3104)">
+              <label class="btn btn-outline-primary" for="resolution-selector5">3.7K Anamorphic</label>
+
+              <input type="radio" class="btn-check" name="resolution-selector" id="resolution-selector6" autocomplete="off" :checked="camera.params.video.recording_format.slice(2,4).equals([2880, 1512])" @click="updateResolution(2880, 1512)">
+              <label class="btn btn-outline-primary" for="resolution-selector6">2.8K 17:9</label>
+
+              <input type="radio" class="btn-check" name="resolution-selector" id="resolution-selector7" autocomplete="off" :checked="camera.params.video.recording_format.slice(2,4).equals([3840, 2160])" @click="updateResolution(3840, 2160)">
+              <label class="btn btn-outline-primary" for="resolution-selector7">Ultra HD</label>
+
+              <input type="radio" class="btn-check" name="resolution-selector" id="resolution-selector8" autocomplete="off" :checked="camera.params.video.recording_format.slice(2,4).equals([1920, 1080])" @click="updateResolution(1920, 1080)">
+              <label class="btn btn-outline-primary" for="resolution-selector8">HD</label>
+            </div>
+
+            <div class="d-block">
+              <input type="checkbox" class="form-check-input" id="file-m-rate" data-group=1 data-id=9 data-index="4" data-bit="0" @input="updateBitfieldParameter" :disabled="camera.params.video.recording_format == undefined" :checked="camera.params.video.recording_format[4] & 0b1">
+              <label for="file-m-rate" class="form-label mx-2">File-M-Rate</label>
+            </div>
+
+            <div class="d-block">
+              <input type="checkbox" class="form-check-input" id="sensor-m-rate" data-group=1 data-id=9 data-index="4" data-bit="1" @input="updateBitfieldParameter" :disabled="camera.params.video.recording_format == undefined" :checked="camera.params.video.recording_format[4] & 0b10">
+              <label for="sensor-m-rate" class="form-label mx-2">Sensor-M-Rate</label>
+            </div>
+
+            <div class="d-block">
+              <input type="checkbox" class="form-check-input" id="sensor-off-speed" data-group=1 data-id=9 data-index="4" data-bit="2" @input="updateBitfieldParameter" :disabled="camera.params.video.recording_format == undefined" :checked="camera.params.video.recording_format[4] & 0b100">
+              <label for="sensor-off-speed" class="form-label mx-2">Sensor-Off-Speed</label>
+            </div>
+
+            <div class="d-block">
+              <input type="checkbox" class="form-check-input" id="interlaced" data-group=1 data-id=9 data-index="4" data-bit="3" @input="updateBitfieldParameter" :disabled="camera.params.video.recording_format == undefined" :checked="camera.params.video.recording_format[4] & 0b1000">
+              <label for="interlaced" class="form-label mx-2">Interlaced</label>
+            </div>
+
+            <div class="d-block">
+              <input type="checkbox" class="form-check-input" id="windowed-mode" data-group=1 data-id=9 data-index="4" data-bit="4" @input="updateBitfieldParameter" :disabled="camera.params.video.recording_format == undefined" :checked="camera.params.video.recording_format[4] & 0b10000">
+              <label for="windowed-mode" class="form-label mx-2">Windowed Mode</label>
+            </div>
+
             <label for="iso" class="form-label">ISO: {{ camera.params.video.iso }}</label>
             <input type="range" class="form-range" min="0" max="25" step="1" data-group=1 data-id=14 data-options="[100,125,160,200,250,320,400,500,640,800,1000,1250,1600,2000,2500,3200,4000,5000,6400,8000,10000,12800,16000,20000,25600]" id="iso" @input="updateParameterBySelection" :disabled="camera.params.video.iso == undefined" :value="[100,125,160,200,250,320,400,500,640,800,1000,1250,1600,2000,2500,3200,4000,5000,6400,8000,10000,12800,16000,20000,25600].indexOf(camera.params.video.iso)">
           </div>
@@ -83,6 +196,37 @@
           </div>
 
           <div class="tab-pane fade" id="media" role="tabpanel" aria-labelledby="media-tab">
+            <!-- the camera seems to disallow changing codec remotely for some reason -->
+            <label for="codec" class="form-label d-block">Codec and Quality:</label>
+            <select id="codec" class="form-select dropdown-side" title="Blackmagic Cameras don't allow changing codec remotely" data-group=10 data-id=0 data-index=0 id="input-type" @change="updateCompositeParameter" disabled :value="camera.params.media.codec[0]">
+              <option value="0">CinemaDNG</option>
+              <option value="1">DNxHD</option>
+              <option value="2">ProRes</option>
+              <option value="3">Blackmagic RAW</option>
+            </select>
+            <select v-if="camera.params.media.codec[0] == 0" class="form-select dropdown-side" data-group=10 data-id=0 data-index=1 @change="updateCompositeParameter" :disabled="camera.params.media.codec == undefined" :value="camera.params.media.codec[1]">
+              <option value="0">Uncompressed</option>
+              <option value="1">3:1</option>
+              <option value="2">4:1</option>
+            </select>
+            <select v-if="camera.params.media.codec[0] == 2" class="form-select dropdown-side" data-group=10 data-id=0 data-index=1 @change="updateCompositeParameter" :disabled="camera.params.media.codec == undefined" :value="camera.params.media.codec[1]">
+              <option value="0">HQ</option>
+              <option value="1">422</option>
+              <option value="2">LT</option>
+              <option value="3">Proxy</option>
+              <option value="4">444</option>
+              <option value="5">444XQ</option>
+            </select>
+            <select v-if="camera.params.media.codec[0] == 3" class="form-select dropdown-side" data-group=10 data-id=0 data-index=1 @change="updateCompositeParameter" :disabled="camera.params.media.codec == undefined" :value="camera.params.media.codec[1]">
+              <option value="0">Q0</option>
+              <option value="7">Q1</option>
+              <option value="8">Q3</option>
+              <option value="1">Q5</option>
+              <option value="2">3:1</option>
+              <option value="3">5:1</option>
+              <option value="4">8:1</option>
+              <option value="5">12:1</option>
+            </select>
           </div>
 
           <div class="tab-pane fade" id="color" role="tabpanel" aria-labelledby="color-tab">
@@ -95,6 +239,7 @@
           </div>
         </div>
       </div>
+      <button @click="dumpParams">Dump Params</button>
     </div>
   </div>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -115,14 +260,41 @@
           window.camera = this.camera;
         },
         async updateParameter(event) {
-          this.updateParameterRaw(parseInt(event.target.dataset.group), parseInt(event.target.dataset.id), parseInt(event.target.dataset.index), event.target.value);
+          this.updateParameterRaw(parseInt(event.target.dataset.group), parseInt(event.target.dataset.id), event.target.value);
         },
         async updateParameterBySelection(event) {
           let options = JSON.parse(event.target.dataset.options);
-          this.updateParameterRaw(parseInt(event.target.dataset.group), parseInt(event.target.dataset.id), parseInt(event.target.dataset.index), options[event.target.value]);
+          this.updateParameterRaw(parseInt(event.target.dataset.group), parseInt(event.target.dataset.id), options[event.target.value]);
         },
-        async updateParameterRaw(group, id, index, value) {
-          await this.camera.setParam(group, id, index || 0, value);
+        async updateCompositeParameter(event) {
+          let group = parseInt(event.target.dataset.group);
+          let id = parseInt(event.target.dataset.id);
+          let value = parseInt(event.target.value);
+          let index = parseInt(event.target.dataset.index);
+          let original = this.camera.getParam(group, id);
+          original[index] = value;
+          this.updateParameterRaw(group, id, original);
+        },
+        async updateBitfieldParameter(event) {
+          let group = parseInt(event.target.dataset.group);
+          let id = parseInt(event.target.dataset.id);
+          let index = parseInt(event.target.dataset.index);
+          let bit = parseInt(event.target.dataset.bit);
+          let original = this.camera.getParam(group, id);
+          original[index] = event.target.checked ? original[index] | (1 << bit) : original[index] & ~(1 << bit);
+          this.updateParameterRaw(group, id, original);
+        },
+        async updateResolution(width, height) {
+          let original = this.camera.params.video.recording_format;
+          original[2] = width;
+          original[3] = height;
+          this.updateParameterRaw(1, 9, original);
+        },
+        async updateParameterRaw(group, id, value) {
+          await this.camera.setParam(group, id, value);
+        },
+        async dumpParams() {
+          console.log(await this.camera.params);
         }
       },
     }).mount('#app');

@@ -47,6 +47,13 @@ class BMPCC {
       });
   }
 
+
+  *chunks(arr, n) {
+    for (let i = 0; i < arr.length; i += n) {
+      yield arr.slice(i, i + n);
+    }
+  }
+
   async connect() {
     let options = {};
     options.filters = [
@@ -76,6 +83,17 @@ class BMPCC {
     let statusCharacteristic = await service.getCharacteristic(services.cameraService.characteristics.status);
     await statusCharacteristic.startNotifications();
     statusCharacteristic.addEventListener('characteristicvaluechanged', this.handleStatus.bind(this));
+  }
+
+  getParam(group, parameter) {
+    // look up what we just received
+    let foundGroup = this.protocol.groups.find(x => x.id == group);
+    if(!foundGroup) return;
+
+    let foundParameter = foundGroup.parameters.find(x => x.id == parameter);
+    if(!foundParameter) return;
+
+    return this.params[foundGroup.normalized_name][foundParameter.normalized_parameter];
   }
 
   async getStringCharacteristic(serviceUuid, characteristicUuid) {
@@ -108,10 +126,21 @@ class BMPCC {
     let value;
     switch(parameter.type) {
       case 'int8':
-        value = a[6];
+        if(parameter.index.length != 0) {
+          value = a.slice(8);
+        } else {
+          value = a[6];
+        }
         break;
       case 'int16':
-        value = this.make16(a[9], a[8]);
+        if (parameter.index.length != 0) {
+          value = [];
+          [...this.chunks(a.slice(8), 2)].forEach((chunk, index) => {
+            value[index] = this.make16(chunk[1], chunk[0]);
+          });
+        } else {
+          value = this.make16(a[9], a[8]);
+        }
         break;
       case 'int32':
         value = this.make32(a[11], a[10], a[9], a[8]);
@@ -165,7 +194,7 @@ class BMPCC {
     this.status = state;
   }
 
-  async setParam(groupId, paramId, index, value) {
+  async setParam(groupId, paramId, value) {
     let group = this.protocol.groups.find(group => group.id == groupId);
     if(!group) return;
 
@@ -176,11 +205,22 @@ class BMPCC {
     let bytes, type;
     switch(parameter.type) {
       case 'int8':
-        bytes = [value];
+        if(parameter.index.length != 0) {
+          bytes = value;
+        } else {
+          bytes = [value];
+        }
         type = 1;
         break;
       case 'int16':
-        bytes = [value & 0xFF, (value >> 8) & 0xFF];
+        if (parameter.index.length != 0) {
+          bytes = [];
+          value.forEach(element => {
+            bytes.push(element & 0xFF, (element >> 8) & 0xFF);
+          });
+        } else {
+          bytes = [value & 0xFF, (value >> 8) & 0xFF];
+        }
         type = 2;
         break;
       case 'int32':
@@ -192,6 +232,7 @@ class BMPCC {
         type = 4;
         break;
       case 'fixed16':
+        console.log(value);
         value = value * 2048;
         bytes = [value & 0xFF, (value >> 8) & 0xFF];
         type = 128;
@@ -207,14 +248,14 @@ class BMPCC {
     }
 
     // pad bytes to 4-byte boundary
-    while(bytes.length % 4 != 0) {
-      bytes.push(0x00);
-    }
+    // while(bytes.length % 4 != 0) {
+    //   bytes.push(0x00);
+    // }
 
     let operation = 0x00; // when is this 1?
 
     // build the packet
-    let packet = [0xFF, bytes.length + 4, 0x00, 0x00, groupId, paramId, type, index, ...bytes];
+    let packet = [0xFF, bytes.length + 4, 0x00, 0x00, groupId, paramId, type, 0, ...bytes];
     await this.sendPacket(packet);
   }
 
@@ -238,3 +279,35 @@ class BMPCC {
     return (a << 56) | (b << 48) | (c << 40) | (d << 32) | (e << 24) | (f << 16) | (g << 8) | h;
   }
 }
+
+// Warn if overriding existing method
+if(Array.prototype.equals)
+    console.warn("Overriding existing Array.prototype.equals. Possible causes: New API defines the method, there's a framework conflict or you've got double inclusions in your code.");
+// attach the .equals method to Array's prototype to call it on any array
+Array.prototype.equals = function (array) {
+    // if the other array is a falsy value, return
+    if (!array)
+        return false;
+    // if the argument is the same array, we can be sure the contents are same as well
+    if(array === this)
+        return true;
+    // compare lengths - can save a lot of time 
+    if (this.length != array.length)
+        return false;
+
+    for (var i = 0, l=this.length; i < l; i++) {
+        // Check if we have nested arrays
+        if (this[i] instanceof Array && array[i] instanceof Array) {
+            // recurse into the nested arrays
+            if (!this[i].equals(array[i]))
+                return false;       
+        }           
+        else if (this[i] != array[i]) { 
+            // Warning - two different object instances will never be equal: {x:20} != {x:20}
+            return false;   
+        }           
+    }       
+    return true;
+}
+// Hide method from for-in loops
+Object.defineProperty(Array.prototype, "equals", {enumerable: false});
